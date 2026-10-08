@@ -28,7 +28,7 @@ namespace SsokCapture
     // 버전은 여기 한 곳만 고치면 된다. 고치면 변경기록.md 에도 한 줄 남기기.
     public static class App
     {
-        public const string Version = "1.5.1";
+        public const string Version = "1.5.4";
     }
 
     // ---------------- 테마 ----------------
@@ -1126,12 +1126,48 @@ namespace SsokCapture
         public const uint VK_F8 = 0x77;
     }
 
+    // ---------------- 진단 로그 ----------------
+    // 트레이 상주 앱이라 "안 될 때" 무슨 상태였는지 알 수 없어서 주요 이벤트를 로그.txt 에 남긴다.
+    public static class AppLog
+    {
+        private static readonly object gate = new object();
+
+        public static void Write(string msg)
+        {
+            try
+            {
+                lock (gate)
+                {
+                    string p = System.IO.Path.Combine(Application.StartupPath, "로그.txt");
+                    try
+                    {
+                        // 너무 커지면 뒤쪽 500줄만 남긴다
+                        System.IO.FileInfo fi = new System.IO.FileInfo(p);
+                        if (fi.Exists && fi.Length > 200 * 1024)
+                        {
+                            string[] lines = System.IO.File.ReadAllLines(p);
+                            int keep = Math.Min(lines.Length, 500);
+                            string[] tail = new string[keep];
+                            Array.Copy(lines, lines.Length - keep, tail, 0, keep);
+                            System.IO.File.WriteAllLines(p, tail);
+                        }
+                    }
+                    catch { }
+                    System.IO.File.AppendAllText(p,
+                        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "  " + msg + "\r\n");
+                }
+            }
+            catch { }
+        }
+    }
+
     // ---------------- 윈도우 시작 시 자동 실행 ----------------
 
     public static class AutoRun
     {
         private const string Key = @"Software\Microsoft\Windows\CurrentVersion\Run";
         private const string Name = "SsokCapture";
+        private const string TaskName = "SoulgomCapture";
 
         public static bool Enabled
         {
@@ -1146,6 +1182,9 @@ namespace SsokCapture
             }
         }
 
+        // Run 키와 작업 스케줄러 로그온 작업을 함께 관리한다.
+        // 탐색기가 서명 없는 exe 의 Run 항목을 조용히 건너뛰는 경우가 있어서(SAC 켜진 PC),
+        // 실제 자동 실행은 예약 작업이 담당하고 Run 키는 상태 표시 겸 예비로 남긴다.
         public static void Set(bool on)
         {
             try
@@ -1156,6 +1195,39 @@ namespace SsokCapture
                     if (on) k.SetValue(Name, "\"" + Application.ExecutablePath + "\" -tray");
                     else if (k.GetValue(Name) != null) k.DeleteValue(Name, false);
                 }
+            }
+            catch { }
+
+            // schtasks CLI 는 ONLOGON 등록에 관리자 권한을 요구하지만
+            // PowerShell 예약 작업 모듈은 자기 계정 로그온 작업을 일반 권한으로 등록할 수 있다.
+            // 작업은 exe 가 아니라 다시열기.ps1 을 실행한다 - SAC 가 exe 를 차단해도
+            // (서명된) PowerShell 이 재빌드로 해시를 바꿔가며 알아서 복구해 띄운다.
+            try
+            {
+                string tray = System.IO.Path.Combine(
+                    System.IO.Path.GetDirectoryName(Application.ExecutablePath), "다시열기.ps1");
+                string cmd;
+                if (on)
+                    cmd = "$arg = '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"" + tray + "\" -Tray'\r\n" +
+                          "$a = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $arg\r\n" +
+                          "$t = New-ScheduledTaskTrigger -AtLogOn -User '" + Environment.UserDomainName + "\\" + Environment.UserName + "'\r\n" +
+                          "$t.Delay = 'PT15S'\r\n" +
+                          "$s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero)\r\n" +
+                          "Register-ScheduledTask -TaskName '" + TaskName + "' -Action $a -Trigger $t -Settings $s -Force | Out-Null\r\n";
+                else
+                    cmd = "Unregister-ScheduledTask -TaskName '" + TaskName + "' -Confirm:$false -ErrorAction SilentlyContinue\r\n";
+
+                // 명령줄 따옴표 지옥을 피하려고 임시 스크립트 파일로 실행한다 (UTF-8 BOM 필수)
+                string tmp = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "soulgom-autorun.ps1");
+                System.IO.File.WriteAllText(tmp, cmd, new System.Text.UTF8Encoding(true));
+                System.Diagnostics.ProcessStartInfo si = new System.Diagnostics.ProcessStartInfo(
+                    "powershell.exe", "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"" + tmp + "\"");
+                si.CreateNoWindow = true;
+                si.UseShellExecute = false;
+                using (System.Diagnostics.Process p = System.Diagnostics.Process.Start(si))
+                    p.WaitForExit(15000);
+                try { System.IO.File.Delete(tmp); } catch { }
+                AppLog.Write("자동 실행 " + (on ? "등록" : "해제") + " (예약 작업, 다시열기 경유)");
             }
             catch { }
         }
@@ -3560,7 +3632,8 @@ namespace SsokCapture
 
         private static void Run(bool fullScreen, Form extraHide)
         {
-            if (busy) return;
+            if (busy) { AppLog.Write("캡처 요청 무시 (이전 캡처 진행 중)"); return; }
+            AppLog.Write(fullScreen ? "전체 화면 캡처" : "영역 캡처");
             busy = true;
             try
             {
@@ -3632,6 +3705,7 @@ namespace SsokCapture
         private bool startHidden;
         private bool toldAboutTray;
         private NotifyIcon tray;
+        private Label hint;
         private Icon appIcon;
         private string hotkeyName = "PrtScn";
 
@@ -3747,19 +3821,13 @@ namespace SsokCapture
             divider.BackColor = Theme.Line;
             Controls.Add(divider);
 
-            Label hint = new Label();
+            hint = new Label();
             hint.AutoSize = true;
             hint.ForeColor = Theme.Muted;
             hint.Location = new Point(Theme.S(14), Theme.S(114));
             Controls.Add(hint);
 
-            if (Native.RegisterHotKey(Handle, HotkeyId, 0, Native.VK_SNAPSHOT))
-            { hotkeyRegistered = true; hotkeyName = "PrtScn"; }
-            else if (Native.RegisterHotKey(Handle, HotkeyId, 0, Native.VK_F8))
-            { hotkeyRegistered = true; hotkeyName = "F8"; }
-            else
-            { hotkeyName = null; }
-            hint.Text = (hotkeyName != null) ? ("단축키   " + hotkeyName) : "단축키 등록 실패 · 버튼으로 캡처";
+            RegisterHotkey();
 
             CheckRow auto = new CheckRow("윈도우 시작할 때 자동 실행");
             auto.Checked = AutoRun.Enabled;
@@ -3789,12 +3857,55 @@ namespace SsokCapture
             Location = new Point(wa.Right - Width - Theme.S(24), wa.Top + Theme.S(20));
         }
 
+        // 단축키를 (재)등록한다. 절전 복귀나 디스플레이 변경 뒤 등록이 풀리는 경우가 있어서
+        // 그런 이벤트마다 다시 건다.
+        private void RegisterHotkey()
+        {
+            Native.UnregisterHotKey(Handle, HotkeyId);
+            hotkeyRegistered = false;
+            if (Native.RegisterHotKey(Handle, HotkeyId, 0, Native.VK_SNAPSHOT))
+            { hotkeyRegistered = true; hotkeyName = "PrtScn"; }
+            else if (Native.RegisterHotKey(Handle, HotkeyId, 0, Native.VK_F8))
+            { hotkeyRegistered = true; hotkeyName = "F8"; }
+            else
+            { hotkeyName = null; }
+            if (hint != null)
+                hint.Text = (hotkeyName != null) ? ("단축키   " + hotkeyName) : "단축키 등록 실패 · 버튼으로 캡처";
+            if (tray != null)
+                tray.Text = "소울곰 캡처 v" + App.Version + "  ·  " + ((hotkeyName != null) ? hotkeyName + " 로 캡처" : "버튼으로 캡처");
+            AppLog.Write("단축키 등록: " + ((hotkeyName != null) ? hotkeyName : "실패"));
+        }
+
+        private const int WM_DISPLAYCHANGE = 0x007E;
+        private const int WM_POWERBROADCAST = 0x0218;
+        private const int PBT_APMRESUMEAUTOMATIC = 0x0012;
+        private const int PBT_APMRESUMESUSPEND = 0x0007;
+        private static readonly uint WM_TASKBARCREATED = Native.RegisterWindowMessage("TaskbarCreated");
+
         protected override void WndProc(ref Message m)
         {
             if (m.Msg == Native.WM_HOTKEY && m.WParam.ToInt32() == HotkeyId)
                 Shooter.Region(null);
             else if (m.Msg == (int)Native.WM_SHOW_SSOK)
                 ShowWindow();   // 두 번째로 실행된 소울곰 캡처가 보낸 신호
+            else if (m.Msg == WM_POWERBROADCAST &&
+                     (m.WParam.ToInt32() == PBT_APMRESUMEAUTOMATIC || m.WParam.ToInt32() == PBT_APMRESUMESUSPEND))
+            {
+                // 절전 복귀: 전역 단축키가 풀렸을 수 있으니 다시 등록한다
+                AppLog.Write("절전 복귀 감지");
+                RegisterHotkey();
+            }
+            else if (m.Msg == WM_DISPLAYCHANGE)
+            {
+                AppLog.Write("디스플레이 변경 감지");
+                RegisterHotkey();
+            }
+            else if (WM_TASKBARCREATED != 0 && m.Msg == (int)WM_TASKBARCREATED)
+            {
+                // 탐색기가 재시작되면 트레이 아이콘이 사라진다. 다시 올린다
+                AppLog.Write("작업 표시줄 재생성: 트레이 아이콘 재등록");
+                if (tray != null) { tray.Visible = false; tray.Visible = true; }
+            }
             base.WndProc(ref m);
         }
 
@@ -3860,12 +3971,21 @@ namespace SsokCapture
                 Application.SetCompatibleTextRenderingDefault(false);
                 Theme.Init();
 
+                // 예기치 못한 오류는 로그에 남긴다 (다음에 "안 될 때" 원인 추적용)
+                Application.ThreadException += delegate(object s, System.Threading.ThreadExceptionEventArgs te)
+                { AppLog.Write("오류: " + te.Exception.GetType().Name + " - " + te.Exception.Message); };
+                AppDomain.CurrentDomain.UnhandledException += delegate(object s, UnhandledExceptionEventArgs ue)
+                { Exception ex = ue.ExceptionObject as Exception; AppLog.Write("치명적 오류: " + ((ex != null) ? ex.GetType().Name + " - " + ex.Message : "?")); };
+
+                bool trayStart = false;
                 Host = new MainForm();
                 foreach (string a in args)
                     if (string.Equals(a, "-tray", StringComparison.OrdinalIgnoreCase))
-                        Host.StartInTray();
+                    { Host.StartInTray(); trayStart = true; }
 
+                AppLog.Write("시작 v" + App.Version + (trayStart ? " (자동 실행, 트레이)" : ""));
                 Application.Run(Host);
+                AppLog.Write("종료");
                 GC.KeepAlive(mtx);
             }
         }

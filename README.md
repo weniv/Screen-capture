@@ -3,7 +3,7 @@
 윈도우용 화면 캡처 + 주석 도구.
 설치 없이 `소울곰 캡처.exe` 하나로 실행할 수 있습니다. (.NET Framework는 윈도우 10/11 내장)
 
-![버전](https://img.shields.io/badge/version-1.5.1-2D6EF0)
+![버전](https://img.shields.io/badge/version-1.5.4-2D6EF0)
 
 ## 기능
 

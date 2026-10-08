@@ -1,6 +1,10 @@
 ﻿# 소울곰 캡처가 Smart App Control에 차단됐을 때 실행하는 해제 스크립트.
 # 실행을 시도하고, 막히면 재빌드로 파일 해시를 바꿔 다시 시도한다 (최대 8회).
+# -Tray : 트레이 모드로 시작 (로그온 예약 작업용)
+param([switch]$Tray)
+
 $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
+if (-not (Test-Path $csc)) { $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe' }
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $exe = Join-Path $here '소울곰 캡처.exe'
 $src = Join-Path $here 'src\SsokCapture.cs'
@@ -10,7 +14,8 @@ Start-Sleep -Milliseconds 300
 
 foreach ($i in 1..8) {
     try {
-        $p = Start-Process $exe -PassThru -ErrorAction Stop
+        if ($Tray) { $p = Start-Process $exe -ArgumentList '-tray' -PassThru -ErrorAction Stop }
+        else { $p = Start-Process $exe -PassThru -ErrorAction Stop }
         Start-Sleep -Seconds 3
         if (Get-Process -Id $p.Id -ErrorAction SilentlyContinue) {
             Write-Host "실행 성공 ($i 회차)" -ForegroundColor Green
