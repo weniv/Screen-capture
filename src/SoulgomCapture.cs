@@ -19,16 +19,16 @@ using Microsoft.Win32;
 
 [assembly: System.Reflection.AssemblyTitle("소울곰 캡처")]
 [assembly: System.Reflection.AssemblyProduct("SoulgomCapture")]
-[assembly: System.Reflection.AssemblyVersion(SsokCapture.App.Version + ".0")]
-[assembly: System.Reflection.AssemblyFileVersion(SsokCapture.App.Version + ".0")]
+[assembly: System.Reflection.AssemblyVersion(SoulgomCapture.App.Version + ".0")]
+[assembly: System.Reflection.AssemblyFileVersion(SoulgomCapture.App.Version + ".0")]
 
-namespace SsokCapture
+namespace SoulgomCapture
 {
     // ---------------- 버전 ----------------
     // 버전은 여기 한 곳만 고치면 된다. 고치면 변경기록.md 에도 한 줄 남기기.
     public static class App
     {
-        public const string Version = "1.5.4";
+        public const string Version = "1.5.5";
     }
 
     // ---------------- 테마 ----------------
@@ -1116,7 +1116,7 @@ namespace SsokCapture
         {
             get
             {
-                if (showMsg == 0) showMsg = RegisterWindowMessage("SsokCapture_ShowWindow_v1");
+                if (showMsg == 0) showMsg = RegisterWindowMessage("SoulgomCapture_ShowWindow_v1");
                 return showMsg;
             }
         }
@@ -1166,7 +1166,7 @@ namespace SsokCapture
     public static class AutoRun
     {
         private const string Key = @"Software\Microsoft\Windows\CurrentVersion\Run";
-        private const string Name = "SsokCapture";
+        private const string Name = "SoulgomCapture";
         private const string TaskName = "SoulgomCapture";
 
         public static bool Enabled
@@ -3958,7 +3958,7 @@ namespace SsokCapture
             // 이미 떠 있으면 그쪽 창을 띄우고 조용히 물러난다
             // (두 개가 뜨면 두 번째는 PrtScn 을 못 잡고 F8 로 밀린다)
             bool first;
-            using (System.Threading.Mutex mtx = new System.Threading.Mutex(true, "SsokCapture_SingleInstance_v1", out first))
+            using (System.Threading.Mutex mtx = new System.Threading.Mutex(true, "SoulgomCapture_SingleInstance_v1", out first))
             {
                 if (!first)
                 {

@@ -9,7 +9,7 @@ cd /d "%~dp0"
   /reference:System.dll ^
   /reference:System.Drawing.dll ^
   /reference:System.Windows.Forms.dll ^
-  "src\SsokCapture.cs"
+  "src\SoulgomCapture.cs"
 
 if errorlevel 1 (
   echo.

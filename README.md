@@ -3,7 +3,7 @@
 윈도우용 화면 캡처 + 주석 도구.
 설치 없이 `소울곰 캡처.exe` 하나로 실행할 수 있습니다. (.NET Framework는 윈도우 10/11 내장)
 
-![버전](https://img.shields.io/badge/version-1.5.4-2D6EF0)
+![버전](https://img.shields.io/badge/version-1.5.5-2D6EF0)
 
 ## 기능
 
@@ -17,7 +17,7 @@
 
 ## 빌드
 
-소스는 `src/SsokCapture.cs` 한 파일입니다. `빌드.bat`을 실행하면 윈도우 내장 C# 컴파일러(csc.exe)로 빌드됩니다. 별도 설치가 필요 없습니다.
+소스는 `src/SoulgomCapture.cs` 한 파일입니다. `빌드.bat`을 실행하면 윈도우 내장 C# 컴파일러(csc.exe)로 빌드됩니다. 별도 설치가 필요 없습니다.
 
 ```
 빌드.bat

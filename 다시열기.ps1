@@ -7,7 +7,7 @@ $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 if (-not (Test-Path $csc)) { $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe' }
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $exe = Join-Path $here '소울곰 캡처.exe'
-$src = Join-Path $here 'src\SsokCapture.cs'
+$src = Join-Path $here 'src\SoulgomCapture.cs'
 
 Get-Process -Name '소울곰 캡처' -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Milliseconds 300
