@@ -3,7 +3,7 @@
 윈도우용 화면 캡처 + 주석 도구.
 설치 없이 `소울곰 캡처.exe` 하나로 실행할 수 있습니다. (.NET Framework는 윈도우 10/11 내장)
 
-![버전](https://img.shields.io/badge/version-1.5.5-2D6EF0)
+![버전](https://img.shields.io/badge/version-1.6.0-2D6EF0)
 
 ## 기능
 
@@ -25,8 +25,8 @@
 
 ## 알아둘 것
 
-- 서명되지 않은 개인 제작 프로그램이라 SmartScreen 경고가 뜰 수 있습니다. "추가 정보 > 실행"으로 진행하면 됩니다.
-- Smart App Control이 켜진 PC에서는 실행이 막힐 수 있습니다. `다시열기.bat`을 실행하면 재빌드를 반복하며 대체로 풀립니다. 자세한 내용은 사용법.md를 참고하세요.
+- v1.6.0부터 배포하는 exe는 **WENIV Corp.** 이름으로 코드 서명돼 있어 Smart App Control이 켜진 PC에서도 실행됩니다.
+- `빌드.bat`으로 직접 빌드한 exe는 서명이 없어서 Smart App Control에 막힐 수 있습니다. 자세한 내용은 사용법.md를 참고하세요.
 
 ## 크레딧
 

@@ -19,6 +19,8 @@ using Microsoft.Win32;
 
 [assembly: System.Reflection.AssemblyTitle("소울곰 캡처")]
 [assembly: System.Reflection.AssemblyProduct("SoulgomCapture")]
+[assembly: System.Reflection.AssemblyCompany("WENIV Corp.")]
+[assembly: System.Reflection.AssemblyCopyright("Copyright (c) WENIV Corp.")]
 [assembly: System.Reflection.AssemblyVersion(SoulgomCapture.App.Version + ".0")]
 [assembly: System.Reflection.AssemblyFileVersion(SoulgomCapture.App.Version + ".0")]
 
@@ -28,7 +30,7 @@ namespace SoulgomCapture
     // 버전은 여기 한 곳만 고치면 된다. 고치면 변경기록.md 에도 한 줄 남기기.
     public static class App
     {
-        public const string Version = "1.5.5";
+        public const string Version = "1.6.0";
     }
 
     // ---------------- 테마 ----------------
@@ -1182,9 +1184,30 @@ namespace SoulgomCapture
             }
         }
 
+        // 지금 exe 기준으로 등록돼야 할 자동 실행 명령. 예약 작업과 Run 키가 같은 값을 쓴다.
+        private static string Command { get { return "\"" + Application.ExecutablePath + "\" -tray"; } }
+
+        // 등록할 때 쓴 명령을 기억해 둔다. 예전 방식(다시열기.ps1 경유)으로 등록됐거나
+        // exe 를 다른 폴더로 옮겼으면 값이 달라지므로, 시작할 때 비교해서 다시 등록한다.
+        private const string StateKey = @"Software\SoulgomCapture";
+        private const string StateName = "AutoRunCommand";
+
+        public static void Refresh()
+        {
+            if (!Enabled) return;
+            try
+            {
+                using (RegistryKey k = Registry.CurrentUser.OpenSubKey(StateKey))
+                    if (k != null && (k.GetValue(StateName) as string) == Command) return;
+            }
+            catch { }
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate { Set(true); });
+        }
+
         // Run 키와 작업 스케줄러 로그온 작업을 함께 관리한다.
-        // 탐색기가 서명 없는 exe 의 Run 항목을 조용히 건너뛰는 경우가 있어서(SAC 켜진 PC),
-        // 실제 자동 실행은 예약 작업이 담당하고 Run 키는 상태 표시 겸 예비로 남긴다.
+        // v1.6.0 부터 exe 가 서명돼 있어 SAC 차단을 우회할 필요가 없으므로 예약 작업이 exe 를 바로 실행한다.
+        // 탐색기가 Run 항목을 늦게 처리하거나 건너뛰는 경우를 대비해 예약 작업이 실제 실행을 맡고,
+        // Run 키는 상태 표시 겸 예비로 남긴다 (둘 다 떠도 단일 인스턴스 뮤텍스가 하나만 남긴다).
         public static void Set(bool on)
         {
             try
@@ -1192,7 +1215,7 @@ namespace SoulgomCapture
                 using (RegistryKey k = Registry.CurrentUser.OpenSubKey(Key, true))
                 {
                     if (k == null) return;
-                    if (on) k.SetValue(Name, "\"" + Application.ExecutablePath + "\" -tray");
+                    if (on) k.SetValue(Name, Command);
                     else if (k.GetValue(Name) != null) k.DeleteValue(Name, false);
                 }
             }
@@ -1200,16 +1223,12 @@ namespace SoulgomCapture
 
             // schtasks CLI 는 ONLOGON 등록에 관리자 권한을 요구하지만
             // PowerShell 예약 작업 모듈은 자기 계정 로그온 작업을 일반 권한으로 등록할 수 있다.
-            // 작업은 exe 가 아니라 다시열기.ps1 을 실행한다 - SAC 가 exe 를 차단해도
-            // (서명된) PowerShell 이 재빌드로 해시를 바꿔가며 알아서 복구해 띄운다.
             try
             {
-                string tray = System.IO.Path.Combine(
-                    System.IO.Path.GetDirectoryName(Application.ExecutablePath), "다시열기.ps1");
+                string exe = Application.ExecutablePath.Replace("'", "''");
                 string cmd;
                 if (on)
-                    cmd = "$arg = '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"" + tray + "\" -Tray'\r\n" +
-                          "$a = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $arg\r\n" +
+                    cmd = "$a = New-ScheduledTaskAction -Execute '" + exe + "' -Argument '-tray'\r\n" +
                           "$t = New-ScheduledTaskTrigger -AtLogOn -User '" + Environment.UserDomainName + "\\" + Environment.UserName + "'\r\n" +
                           "$t.Delay = 'PT15S'\r\n" +
                           "$s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero)\r\n" +
@@ -1224,10 +1243,20 @@ namespace SoulgomCapture
                     "powershell.exe", "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"" + tmp + "\"");
                 si.CreateNoWindow = true;
                 si.UseShellExecute = false;
+                int code;
                 using (System.Diagnostics.Process p = System.Diagnostics.Process.Start(si))
+                {
                     p.WaitForExit(15000);
+                    code = p.HasExited ? p.ExitCode : -1;
+                }
                 try { System.IO.File.Delete(tmp); } catch { }
-                AppLog.Write("자동 실행 " + (on ? "등록" : "해제") + " (예약 작업, 다시열기 경유)");
+
+                using (RegistryKey k = Registry.CurrentUser.CreateSubKey(StateKey))
+                {
+                    if (on && code == 0) k.SetValue(StateName, Command);
+                    else k.DeleteValue(StateName, false);
+                }
+                AppLog.Write("자동 실행 " + (on ? "등록" : "해제") + (code == 0 ? "" : " (예약 작업 실패, 코드 " + code + ")"));
             }
             catch { }
         }
@@ -3984,6 +4013,7 @@ namespace SoulgomCapture
                     { Host.StartInTray(); trayStart = true; }
 
                 AppLog.Write("시작 v" + App.Version + (trayStart ? " (자동 실행, 트레이)" : ""));
+                AutoRun.Refresh();
                 Application.Run(Host);
                 AppLog.Write("종료");
                 GC.KeepAlive(mtx);

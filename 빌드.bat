@@ -6,6 +6,7 @@ if not exist "%CSC%" set CSC=%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe
 
 cd /d "%~dp0"
 "%CSC%" /nologo /target:winexe /optimize+ /out:"소울곰 캡처.exe" ^
+  /win32icon:"아이콘\발바닥.ico" ^
   /reference:System.dll ^
   /reference:System.Drawing.dll ^
   /reference:System.Windows.Forms.dll ^
