@@ -30,7 +30,29 @@ namespace SoulgomCapture
     // 버전은 여기 한 곳만 고치면 된다. 고치면 변경기록.md 에도 한 줄 남기기.
     public static class App
     {
-        public const string Version = "1.6.0";
+        public const string Version = "1.6.1";
+
+        // 실행 파일에 넣은 제3자 구성요소의 고지 (트레이 메뉴 '오픈소스 라이선스'에서 보여 준다)
+        public const string ThirdPartyNotice =
+            "이 프로그램의 도구 아이콘은 Phosphor Icons를 사용합니다.\n" +
+            "https://github.com/phosphor-icons/core\n\n" +
+            "MIT License\n\n" +
+            "Copyright (c) 2023 Phosphor Icons\n\n" +
+            "Permission is hereby granted, free of charge, to any person obtaining a copy " +
+            "of this software and associated documentation files (the \"Software\"), to deal " +
+            "in the Software without restriction, including without limitation the rights " +
+            "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell " +
+            "copies of the Software, and to permit persons to whom the Software is " +
+            "furnished to do so, subject to the following conditions:\n\n" +
+            "The above copyright notice and this permission notice shall be included in all " +
+            "copies or substantial portions of the Software.\n\n" +
+            "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR " +
+            "IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, " +
+            "FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE " +
+            "AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER " +
+            "LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, " +
+            "OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE " +
+            "SOFTWARE.";
     }
 
     // ---------------- 테마 ----------------
@@ -3810,6 +3832,10 @@ namespace SoulgomCapture
             menu.Items.Add("전체 화면", null, delegate { Shooter.Full(null); });
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("소울곰 캡처 창 보이기", null, delegate { ShowWindow(); });
+            menu.Items.Add("오픈소스 라이선스", null, delegate {
+                MessageBox.Show(App.ThirdPartyNotice, "소울곰 캡처 v" + App.Version + " · 오픈소스 라이선스",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            });
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("종료", null, delegate { exitRequested = true; Close(); });
 
